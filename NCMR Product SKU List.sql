@@ -1,0 +1,111 @@
+SELECT a.[NCMR_ID]
+      ,[SBD_NC_PART_NUMBER_SKU_P] AS Part_SKU
+      ,[DEPARTMENT_P] AS Department
+      ,[SBD_NC_PROCESS_P] AS Process
+	  ,[PRODUCTINFO_QUANTITY] AS Production_Quantity
+      ,[SBD_NC_PART_REJECTED_DEFECTS_QTY_P] AS Defect_Quantity
+	  ,b.Hierarchical_Name
+	  ,b.Business
+	  ,b.Division
+	  ,c.SBD_NC_MANUF_LOCATION_P AS Manufacturing_Location
+      ,SUPPLIER_MATERIAL_NAME AS Material_Name
+      ,SBD_MAT_COST_P AS Cost
+	  ,SBD_MAT_CURRENCY_TYPE_1_P AS Currency
+	  ,SBD_MAT_SAP_PLANT_NUMBER_P AS Plant_Number
+	  ,SBD_MAT_SAP_SYSTEM_ID_P AS SAP_System_ID
+	  ,SUPPLIER_PROFILE_SUPPLIER_NAME AS Supplier_Name
+  FROM [StanleyBDQDL].[ODT].[NCMR_PRODUCTINFO_SFS] a
+LEFT JOIN
+(
+SELECT temp.NCMR_ID
+      ,temp.FIELD_VALUE	AS Hierarchical_Name
+      ,CASE WHEN temp.FIELD_VALUE LIKE '%GTS%' THEN 'GTS'
+	        WHEN temp.FIELD_VALUE LIKE '%: IND :%' THEN 'IND'
+			WHEN temp.FIELD_VALUE LIKE '%: IND' THEN 'IND'
+			WHEN temp.FIELD_VALUE LIKE '%Security%' THEN 'Security'
+			WHEN temp.FIELD_VALUE LIKE '%: OTD :%' THEN 'OTD'
+			WHEN temp.FIELD_VALUE LIKE '%: OTD%' THEN 'OTD'
+			WHEN temp.FIELD_VALUE LIKE 'SBD' THEN 'SBD'
+			ELSE NULL END AS Business
+	 ,CASE  WHEN temp.FIELD_VALUE IN ('SBD : GTS : Canada : Mill Creek DC ','SBD : GTS : USA : Fontana DC', 'SBD : GTS : USA : Ft Mill DC',
+	 'SBD : GTS : USA : KAN DC','SBD : GTS : USA : Northlake DC','SBD : GTS : USA : PPT : Brewster DC', 'SBD : GTS : USA : Miramar DC') THEN 'North American DC'
+			WHEN temp.FIELD_VALUE LIKE '%: SAT :%' THEN 'SAT'
+	        WHEN temp.FIELD_VALUE LIKE '%: SAT%' THEN 'SAT'
+            WHEN temp.FIELD_VALUE LIKE '%: CPG :%' THEN 'CPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: CPG%' THEN 'CPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: FAS :%' THEN 'FAS'
+	        WHEN temp.FIELD_VALUE LIKE '%: FAS%' THEN 'FAS'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTAS :%' THEN 'HTAS'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTAS%' THEN 'HTAS'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTA :%' THEN 'HTA'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTA%' THEN 'HTA'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTC :%' THEN 'HTC'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTC%' THEN 'HTC'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTSG :%' THEN 'HTSG'
+	        WHEN temp.FIELD_VALUE LIKE '%: HTSG%' THEN 'HTSG'
+	        WHEN temp.FIELD_VALUE LIKE '%: Infrastructure :%' THEN 'Infrastructure'
+	        WHEN temp.FIELD_VALUE LIKE '%: Infrastructure%' THEN 'Infrastructure'
+	        WHEN temp.FIELD_VALUE LIKE '%: OPG :%' THEN 'OPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: OPG%' THEN 'OPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: PPG :%' THEN 'PPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: PPG%' THEN 'PPG'
+	        WHEN temp.FIELD_VALUE LIKE '%: PPT :%' THEN 'PPT'
+	        WHEN temp.FIELD_VALUE LIKE '%: PPT%' THEN 'PPT'
+	        WHEN temp.FIELD_VALUE LIKE '%: PTA :%' THEN 'PTA'
+	        WHEN temp.FIELD_VALUE LIKE '%: PTA%' THEN 'PTA'
+	        WHEN temp.FIELD_VALUE LIKE '%: SEF Auto :%' THEN 'SEF Auto'
+	        WHEN temp.FIELD_VALUE LIKE '%: SEF Auto%' THEN 'SEF Auto'
+	        WHEN temp.FIELD_VALUE LIKE '%: SEF Industrial :%' THEN 'SEF Industrial'
+	        WHEN temp.FIELD_VALUE LIKE '%: SEF Industrial%' THEN 'SEF Industrial'
+	        WHEN temp.FIELD_VALUE LIKE '%: SHS :%' THEN 'SHS'
+	        WHEN temp.FIELD_VALUE LIKE '%: SHS%' THEN 'SHS'
+			WHEN temp.FIELD_VALUE LIKE '%Damparis%' THEN 'Europe DC'
+			WHEN temp.FIELD_VALUE LIKE '%Towson%' THEN 'Design Center'
+			WHEN temp.FIELD_VALUE LIKE '%Weihoek%' OR temp.FIELD_VALUE LIKE '%Marietta%' THEN 'SHS'
+			ELSE 'Not Applicable' END AS Division
+FROM
+(
+SELECT NCMR_ID
+      ,FIELD_VALUE
+	  ,RECORD_ORDER
+	  ,RANK() OVER (PARTITION BY NCMR_ID ORDER BY RECORD_ORDER DESC) AS Ranking
+  FROM [StanleyBDQDL].[ODT].[NCMR_DOCUMENT_D]
+  WHERE FIELD_NAME = 'HIERARCHICAL_NAME'
+) temp
+WHERE temp.Ranking = 1
+) b
+ON a.NCMR_ID = b.NCMR_ID
+LEFT JOIN
+(
+SELECT NCMR_ID, SBD_NC_MANUF_LOCATION_P
+  FROM [StanleyBDQDL].[ODT].[NCMR_DOCUMENT_S]
+) c
+ON a.NCMR_ID = c.NCMR_ID
+LEFT JOIN
+(
+SELECT SBD_MAT_PART_SKU_NUMBER_P
+	  ,SUPPLIER_MATERIAL_NAME
+      ,SBD_MAT_COST_P
+	  ,SBD_MAT_CURRENCY_TYPE_1_P
+	  ,SBD_MAT_SAP_PLANT_NUMBER_P
+	  ,SBD_MAT_SAP_SYSTEM_ID_P
+	  ,y.SUPPLIER_PROFILE_ID
+	  ,z.SUPPLIER_PROFILE_SUPPLIER_NAME
+	  ,ETQ_MODIFIED_DATE
+	  ,RANK() OVER (PARTITION BY SBD_MAT_PART_SKU_NUMBER_P ORDER BY ETQ_MODIFIED_DATE DESC) AS Ranking
+  FROM [StanleyBDQDL].[ODT].[SUPPLIER_MATERIALPROFILE_S] x
+LEFT JOIN
+(
+SELECT MATERIAL_PROFILE_ID, SUPPLIER_PROFILE_ID
+FROM [StanleyBDQDL].[ODT].[SUPPLIER_MATERIALINITIALQUALIFICATION_SFS]
+) y
+ON x.MATERIAL_PROFILE_ID = y.MATERIAL_PROFILE_ID
+LEFT JOIN
+(
+SELECT SUPPLIER_PROFILE_ID, SUPPLIER_PROFILE_SUPPLIER_NAME
+FROM  [StanleyBDQDL].[ODT].[SUPPLIER_PROFILE_S]
+) z
+ON y.SUPPLIER_PROFILE_ID = z.SUPPLIER_PROFILE_ID
+) d
+ON a.[SBD_NC_PART_NUMBER_SKU_P] = d.SBD_MAT_PART_SKU_NUMBER_P
+WHERE d.Ranking = 1 
